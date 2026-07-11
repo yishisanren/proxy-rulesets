@@ -1,0 +1,5 @@
+# 上游源 dump / 编译产物临时文件
+*.tar.gz
+sing-box
+sing-box-*/
+/tmp/

@@ -1,0 +1,64 @@
+name: Build proxy rule-sets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "broker/*.list"
+      - "scripts/**"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-rulesets
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install sing-box (for .srs compilation)
+        run: |
+          set -euo pipefail
+          ver=$(curl -fsSL "https://api.github.com/repos/SagerNet/sing-box/releases/latest" \
+            | python -c "import sys,json;print(json.load(sys.stdin)['tag_name'])")
+          vnum="${ver#v}"
+          curl -fsSL -o /tmp/sb.tar.gz \
+            "https://github.com/SagerNet/sing-box/releases/download/${ver}/sing-box-${vnum}-linux-amd64.tar.gz"
+          tar -xzf /tmp/sb.tar.gz -C /tmp
+          sudo install -m 0755 "/tmp/sing-box-${vnum}-linux-amd64/sing-box" /usr/local/bin/sing-box
+          sing-box version
+
+      # broker: 每个 .list -> source json(v1) + binary srs(v1)
+      - name: Build broker rule-sets
+        run: |
+          shopt -s nullglob
+          for f in broker/*.list; do
+            name="$(basename "${f%.list}")"
+            python scripts/loon2singbox.py "$f" "broker/${name}.json"
+          done
+
+      # NOTE: adblock 规则集依赖 5 个外部上游源，数据量大且更新频率不同，
+      # 不在每次 push 时重新拉取编译（避免上游抖动污染稳定产物）。
+      # 需要刷新去广告规则时，本地跑 `bash build.sh` 或手动触发下方的独立流程。
+
+      - name: Commit generated rule-sets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add broker/
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "ci: rebuild broker rule-sets from .list"
+            git push
+          fi
