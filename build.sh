@@ -8,16 +8,25 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Resolve sing-box to an absolute path up front so every sub-shell (incl. the
+# _match verifier) sees it regardless of PATH inheritance. Fail loudly if absent.
 SB="${SB:-sing-box}"
+if ! command -v "$SB" >/dev/null 2>&1; then
+  echo "ERROR: sing-box not found (SB=$SB). Install it or set SB=/abs/path/to/sing-box" >&2
+  exit 127
+fi
+SB="$(command -v "$SB")"
+echo "using sing-box: $SB"
 
 echo "############ 1/2  去广告规则集 (adblock) ############"
-echo "==> 拉取上游 5 源"
+echo "==> 拉取上游 6 源"
 TMP=$(mktemp -d)
 curl -sL --max-time 60 "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AdvertisingLite/AdvertisingLite_Domain.yaml" -o "$TMP/advlite.yaml"
 curl -sL --max-time 60 "https://raw.githubusercontent.com/yishisanren/adhost/refs/heads/main/adhosts.yaml" -o "$TMP/adhosts.yaml"
 curl -sL --max-time 60 "https://raw.githubusercontent.com/yishisanren/adhost/refs/heads/main/10007.yaml" -o "$TMP/adhosts10007.yaml"
 curl -sL --max-time 60 "https://raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Block.list" -o "$TMP/block.list"
 curl -sL --max-time 60 "https://anti-ad.net/domains.txt" -o "$TMP/antiad-domains.txt"
+curl -sL --max-time 60 "https://raw.githubusercontent.com/lingeringsound/10007/main/all" -o "$TMP/all10007.hosts"
 
 echo "==> 转换合并去重 -> adblock/ad-reject.json (v3) + domains.txt"
 ( cd "$TMP" && python3 "$OLDPWD/scripts/adblock_convert.py" )
@@ -41,7 +50,9 @@ for f in broker/*.list; do
 done
 
 echo "############ 闭环校验 ############"
-_match () { "$SB" rule-set match -f binary "$1" "$2" 2>/dev/null | grep -q 'match rules'; }
+# NOTE: `sing-box rule-set match` prints the match result to STDERR, not stdout.
+# Merge stderr into stdout (2>&1) before grep, else every check is a false MISS.
+_match () { "$SB" rule-set match -f binary "$1" "$2" 2>&1 | grep -q 'match rules'; }
 echo "-- adblock NekoBox 版 --"
 for d in doubleclick.net googlesyndication.com; do _match adblock/ad-reject-nekobox.srs "$d" && echo "  [hit ] $d" || echo "  [MISS] $d!"; done
 for d in github.com momcozy.com;             do _match adblock/ad-reject-nekobox.srs "$d" && echo "  [FAIL] $d 误伤!" || echo "  [pass] $d 不命中"; done

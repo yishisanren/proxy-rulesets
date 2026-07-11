@@ -79,6 +79,23 @@ for line in open('antiad-domains.txt', encoding='utf-8', errors='ignore'):
     if not line or line.startswith('#'): continue
     add_suffix(line)
 
+# ---- 6) lingeringsound/10007 'all' (hosts 格式): 精确子域黑名单 -> exact ----
+# 上游按 "0.0.0.0 广告子域" 逐条列出精确广告子域(如 ads.qq.com)，
+# 不是裸域拉黑，语义应为 exact(domain) 而非 suffix，避免误伤父域正常子域。
+# 文件可能不存在(离线/未拉取)时静默跳过，保证脚本对 5 源仍可运行。
+import os as _os
+if _os.path.exists('all10007.hosts'):
+    for line in open('all10007.hosts', encoding='utf-8', errors='ignore'):
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        parts = line.split()
+        if len(parts) >= 2 and (parts[0].startswith('0.0.0.0') or parts[0].startswith('127.') or parts[0].startswith('::')):
+            d = parts[1].strip().lower()
+            if d in ('localhost', 'hostname'):
+                continue
+            add_exact(d)
+
 # ---- 去重: suffix 覆盖优先, 从 exact 剔除已被 suffix 命中的 ----
 def covered_by_suffix(d):
     # d 或其任一父域在 suffix 集合
@@ -89,8 +106,26 @@ def covered_by_suffix(d):
             return True
     return False
 
-exact_final = sorted(d for d in exact if not covered_by_suffix(d))
-suffix_final = sorted(suffix)
+# ---- 白名单防误杀: 正常服务域绝不进黑名单 ----
+# 上游(尤其 10007)是精确子域黑名单，个别条目可能误收正常官方域(推送/下载/CDN)。
+# 规则: 凡命中下列白名单裸域 *本身*、或其官方功能子域, 一律从 exact/suffix 剔除。
+# 只做「精确域 == 白名单」与「精确域是白名单指定官方子域」两类保护, 不做泛父域豁免
+# (否则 ads.google.com 会因 google.com 在白名单而漏拦)。
+WHITELIST_EXACT = {
+    # 大厂裸域(绝不整域拉黑)
+    'google.com', 'googleapis.com', 'gstatic.com', 'apple.com', 'icloud.com',
+    'microsoft.com', 'windows.com', 'amazon.com', 'amazonaws.com', 'cloudflare.com',
+    'github.com', 'githubusercontent.com', 'qq.com', 'tencent.com', 'weixin.qq.com',
+    'taobao.com', 'alipay.com', 'paypal.com', 'momcozy.com',
+    # 官方推送/下载/连接性子域(历史手动剔过, 固化防回归)
+    'dl.google.com', 'mtalk.google.com', 'clients3.google.com', 'connectivitycheck.gstatic.com',
+    'dns.weixin.qq.com', 'szshort.weixin.qq.com', 'szlong.weixin.qq.com',
+}
+def is_whitelisted(d):
+    return d in WHITELIST_EXACT
+
+exact_final = sorted(d for d in exact if not covered_by_suffix(d) and not is_whitelisted(d))
+suffix_final = sorted(d for d in suffix if not is_whitelisted(d))
 
 ruleset = {
     "version": 3,
@@ -108,7 +143,7 @@ with open('ad-reject.json', 'w', encoding='utf-8') as f:
 # 明文合并域名清单(便于人工核对 / 其他客户端复用): suffix 加前缀 '.' 表示含子域
 with open('domains.txt', 'w', encoding='utf-8') as f:
     f.write("# Momcozy/yishisanren merged ad-reject domain list\n")
-    f.write("# sources: anti-AD, AdvertisingLite(blackmatrix7), adhosts, adhosts-10007, Block(liandu2024)\n")
+    f.write("# sources: anti-AD, AdvertisingLite(blackmatrix7), adhosts, adhosts-10007, Block(liandu2024), lingeringsound/10007\n")
     f.write(f"# exact={len(exact_final)}  suffix={len(suffix_final)}\n")
     for d in exact_final: f.write(d+'\n')
     for d in suffix_final: f.write('.'+d+'\n')
