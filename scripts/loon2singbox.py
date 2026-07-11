@@ -89,7 +89,10 @@ def convert(in_path, out_path, srs_path=None):
         if shutil.which("sing-box"):
             srs_path = os.path.splitext(out_path)[0] + ".srs"
     if srs_path:
-        sb = shutil.which("sing-box") or "sing-box"
+        # Prefer an explicit sing-box path from the environment (SB=/abs/path),
+        # so callers like build.sh can pin the exact binary they resolved. Fall
+        # back to PATH lookup, then a bare "sing-box" as a last resort.
+        sb = os.environ.get("SB") or shutil.which("sing-box") or "sing-box"
         try:
             subprocess.run(
                 [sb, "rule-set", "compile", "--output", srs_path, out_path],

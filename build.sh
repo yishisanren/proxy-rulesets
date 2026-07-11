@@ -44,15 +44,26 @@ python3 -c "import json; d=json.load(open('adblock/ad-reject.json')); d['version
 echo "############ 2/2  券商分流 (broker) ############"
 echo "==> broker/*.list -> source json(v1) + binary srs(v1)"
 shopt -s nullglob
+export SB   # let loon2singbox.py reuse the exact same sing-box binary we resolved
 for f in broker/*.list; do
   name="$(basename "${f%.list}")"
-  python3 scripts/loon2singbox.py "$f" "broker/${name}.json"
+  # Pass the .srs path explicitly so the binary rule-set is ALWAYS rebuilt,
+  # regardless of whether sing-box happens to be on PATH in this environment.
+  python3 scripts/loon2singbox.py "$f" "broker/${name}.json" "broker/${name}.srs"
 done
 
 echo "############ 闭环校验 ############"
 # NOTE: `sing-box rule-set match` prints the match result to STDERR, not stdout.
-# Merge stderr into stdout (2>&1) before grep, else every check is a false MISS.
-_match () { "$SB" rule-set match -f binary "$1" "$2" 2>&1 | grep -q 'match rules'; }
+# Merge stderr into stdout (2>&1) before grepping, else every check is a false MISS.
+# IMPORTANT: do NOT use `grep -q` here. Under `set -o pipefail`, grep -q closes the
+# pipe on first match, sing-box then dies with SIGPIPE (rc=141), and pipefail turns
+# that into a false MISS for domains that actually matched. Capture full output and
+# test it with a non-short-circuiting matcher instead.
+_match () {
+  local out
+  out="$("$SB" rule-set match -f binary "$1" "$2" 2>&1)"
+  [[ "$out" == *"match rules"* ]]
+}
 echo "-- adblock NekoBox 版 --"
 for d in doubleclick.net googlesyndication.com; do _match adblock/ad-reject-nekobox.srs "$d" && echo "  [hit ] $d" || echo "  [MISS] $d!"; done
 for d in github.com momcozy.com;             do _match adblock/ad-reject-nekobox.srs "$d" && echo "  [FAIL] $d 误伤!" || echo "  [pass] $d 不命中"; done
