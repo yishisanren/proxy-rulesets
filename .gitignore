@@ -3,3 +3,7 @@
 sing-box
 sing-box-*/
 /tmp/
+
+# Python test/build caches
+__pycache__/
+*.pyc
