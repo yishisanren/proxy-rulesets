@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "rules": [
+    {
+      "domain": [
+        "collect.futunn.com"
+      ]
+    },
+    {
+      "domain_suffix": [
+        "futunn.com",
+        "moomoo.com",
+        "futuhk.com",
+        "futustatic.com",
+        "futuhn.com",
+        "futufin.com",
+        "fututrade.com",
+        "laohu8.com",
+        "itiger.com",
+        "skytigris.cn",
+        "skytigris.com",
+        "tigerfintech.com",
+        "tigerbrokers.com",
+        "tigerbrokers.com.sg",
+        "tigerbrokers.net"
+      ]
+    }
+  ]
+}

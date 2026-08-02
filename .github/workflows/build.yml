@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - "broker/*.list"
+      - "ai/ai-all.json"
       - "scripts/**"
+      - "tests/**"
       - ".github/workflows/build.yml"
   workflow_dispatch:
 
@@ -38,16 +40,31 @@ jobs:
           sudo install -m 0755 "/tmp/sing-box-${vnum}-linux-amd64/sing-box" /usr/local/bin/sing-box
           sing-box version
 
-      # broker: 每个 .list -> source json(v1) + binary srs(v1)
+      # broker: 每个 .list -> NekoBox source/binary(v1) + Karing source/binary(v2)
       - name: Build broker rule-sets
         run: |
           shopt -s nullglob
           for f in broker/*.list; do
             name="$(basename "${f%.list}")"
-            python scripts/loon2singbox.py "$f" "broker/${name}.json"
+            python scripts/loon2singbox.py \
+              "$f" "broker/${name}.json" "broker/${name}.srs"
+            python scripts/set_ruleset_version.py \
+              "broker/${name}.json" "broker/${name}-karing.json" 2
+            sing-box rule-set compile \
+              --output "broker/${name}-karing.srs" "broker/${name}-karing.json"
           done
 
-      # NOTE: adblock 规则集依赖 5 个外部上游源，数据量大且更新频率不同，
+      - name: Build AI Karing rule-set
+        run: |
+          python scripts/set_ruleset_version.py \
+            ai/ai-all.json ai/ai-all-karing.json 2
+          sing-box rule-set compile \
+            --output ai/ai-all-karing.srs ai/ai-all-karing.json
+
+      - name: Test generated rule-sets
+        run: python -m unittest discover -s tests -v
+
+      # NOTE: adblock 规则集依赖 6 个外部上游源，数据量大且更新频率不同，
       # 不在每次 push 时重新拉取编译（避免上游抖动污染稳定产物）。
       # 需要刷新去广告规则时，本地跑 `bash build.sh` 或手动触发下方的独立流程。
 
@@ -55,10 +72,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add broker/
+          git add broker/ ai/
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "ci: rebuild broker rule-sets from .list"
+            git commit -m "ci: rebuild generated proxy rule-sets"
             git push
           fi
