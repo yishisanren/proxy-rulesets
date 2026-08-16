@@ -20,11 +20,10 @@ SB="$(command -v "$SB")"
 echo "using sing-box: $SB"
 
 echo "############ 1/3  去广告规则集 (adblock) ############"
-echo "==> 拉取上游 6 源"
+echo "==> 拉取上游 4 源"
 TMP=$(mktemp -d)
 curl -sL --max-time 60 "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AdvertisingLite/AdvertisingLite_Domain.yaml" -o "$TMP/advlite.yaml"
-curl -sL --max-time 60 "https://raw.githubusercontent.com/yishisanren/adhost/refs/heads/main/adhosts.yaml" -o "$TMP/adhosts.yaml"
-curl -sL --max-time 60 "https://raw.githubusercontent.com/yishisanren/adhost/refs/heads/main/10007.yaml" -o "$TMP/adhosts10007.yaml"
+# yishisanren/adhost 仓库已删除(2026-08-16 404)——其内容本就来自 lingeringsound/10007，已由下方 all10007.hosts 覆盖
 curl -sL --max-time 60 "https://raw.githubusercontent.com/liandu2024/clash/refs/heads/main/list/Block.list" -o "$TMP/block.list"
 curl -sL --max-time 60 "https://anti-ad.net/domains.txt" -o "$TMP/antiad-domains.txt"
 curl -sL --max-time 60 "https://raw.githubusercontent.com/lingeringsound/10007/main/all" -o "$TMP/all10007.hosts"
@@ -34,6 +33,9 @@ echo "==> 转换合并去重 -> adblock/ad-reject.json (v3) + domains.txt"
 mv "$TMP/ad-reject.json" adblock/ad-reject.json
 mv "$TMP/domains.txt"    adblock/domains.txt
 rm -rf "$TMP"
+
+echo "==> 派生 Clash/mihomo 版 (behavior:domain yaml)"
+python3 scripts/adblock_clash_export.py
 
 echo "==> 编译 Karing 版 .srs（随当前 sing-box 内核，通常 SRS v2）"
 "$SB" rule-set compile --output adblock/ad-reject.srs adblock/ad-reject.json

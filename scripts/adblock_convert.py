@@ -54,7 +54,10 @@ for line in open('advlite.yaml', encoding='utf-8', errors='ignore'):
         add_exact(v)
 
 # ---- 2,3) adhosts / 10007: payload 纯裸 host -> suffix ----
+import os as _os0
 for fn in ('adhosts.yaml', 'adhosts10007.yaml'):
+    if not _os0.path.exists(fn):  # yishisanren/adhost 已删库(2026-08)，源由 lingeringsound/10007 直采覆盖
+        continue
     for line in open(fn, encoding='utf-8', errors='ignore'):
         m = re.search(r"-\s*'?\"?([^'\"\s]+)'?\"?\s*$", line)
         if m and m.group(1) != 'payload:':
