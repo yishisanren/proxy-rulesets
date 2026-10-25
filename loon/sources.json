@@ -1,0 +1,16 @@
+{
+  "plugins": [
+    {
+      "id": "meituan",
+      "snippet": "https://raw.githubusercontent.com/ZenmoFeiShi/Qx/refs/heads/main/MT.snippet",
+      "homepage": "https://github.com/ZenmoFeiShi/Qx"
+    },
+    {
+      "id": "hellobike",
+      "snippet": "https://raw.githubusercontent.com/ZenmoFeiShi/Qx/refs/heads/main/helloobike.snippet",
+      "homepage": "https://github.com/ZenmoFeiShi/Qx",
+      "skip_request_body_scripts": ["easybike-ad.js"],
+      "skip_reason": "easybike-ad.js 在 QX 里用请求阶段按 sessionIndex 暂存上下文，Loon 没有该字段，这一步只会空跑；Loon 的 http-response 自带 $request.body，脚本会在响应阶段直接解析请求体。"
+    }
+  ]
+}

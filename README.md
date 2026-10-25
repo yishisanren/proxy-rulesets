@@ -24,6 +24,12 @@ proxy-rulesets/
 │   ├── ai-all-karing.json       source v2
 │   ├── ai-all.srs               SRS binary v1 — NekoBox / NekoRay / 旧内核
 │   └── ai-all.json              source v1
+├── loon/             Loon 插件（由 ZenmoFeiShi/Qx 的 QX 规则每日自动转换）
+│   ├── meituan.plugin           美团 App 净化
+│   ├── hellobike.plugin         哈啰 App 净化
+│   ├── scripts/                 插件引用的脚本（上游原脚本 + QX→Loon 兼容层）
+│   ├── compat/qx-compat.js      兼容层模板
+│   └── sources.json             上游来源清单
 ├── scripts/          转换脚本
 └── build.sh          一键重建全部产物
 ```
@@ -68,6 +74,18 @@ proxy-rulesets/
 ```
 https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-karing.srs
 ```
+
+### 🧩 Loon 插件（App 净化，需开启 MITM 并信任证书）
+
+上游为 [ZenmoFeiShi/Qx](https://github.com/ZenmoFeiShi/Qx) 的 Quantumult X 规则，
+`.github/workflows/loon-plugins.yml` 每天自动拉取并转换。
+
+| 插件 | 订阅地址（拼在上述前缀后） | 一键导入 |
+|---|---|---|
+| 美团 App 净化 | `loon/meituan.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Fmeituan.plugin) |
+| 哈啰 App 净化 | `loon/hellobike.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Fhellobike.plugin) |
+
+> 哈啰插件首次使用：打开哈啰 App 后若收到"已捕获本机动态密钥"通知，重新进入首页和"我的"页面即可生效。
 
 ---
 
