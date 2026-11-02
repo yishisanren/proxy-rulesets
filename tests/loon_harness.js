@@ -1,11 +1,14 @@
 // Runs one generated Loon script inside a mock of Loon's script API.
 // Usage: node loon_harness.js <script.js>   (case JSON on stdin, result JSON on stdout)
 //
-// Case: {request, response?, store?, aesKey?}
+// Case: {request, response?, store?, aesKey?, noTextCodec?}
 //   request/response may carry `plainBody` instead of `body`: it is AES-128-CBC
 //   encrypted with aesKey (key = iv, PKCS7, base64) the way HelloBike's API does,
-//   and `asBytes: true` to deliver the body as a Uint8Array.
+//   `asBytes: true` to deliver the body as a Uint8Array (Loon binary-body-mode),
+//   or `bodyBase64` to deliver raw bytes as a Uint8Array.
+//   noTextCodec hides TextDecoder/TextEncoder, which Loon's JS engine may lack.
 // Result: {done, doneCalls, store, notifications, removeCalled, plainBody?}
+//   A Uint8Array done.body is reported as {bodyBase64} instead.
 "use strict";
 const fs = require("fs");
 const vm = require("vm");
@@ -31,6 +34,10 @@ function prepare(msg) {
     out.body = encrypt(out.plainBody, testCase.aesKey);
     delete out.plainBody;
   }
+  if (out.bodyBase64 !== undefined) {
+    out.body = new Uint8Array(Buffer.from(out.bodyBase64, "base64"));
+    delete out.bodyBase64;
+  }
   if (out.asBytes) {
     out.body = new Uint8Array(Buffer.from(out.body, "utf8"));
     delete out.asBytes;
@@ -54,13 +61,18 @@ const sandbox = {
   $notification: { post: (title, subtitle, body) => notifications.push([title, subtitle, body]) },
   $done: (value) => doneCalls.push(value === undefined ? null : value),
   console,
-  TextDecoder,
 };
+if (!testCase.noTextCodec) Object.assign(sandbox, { TextDecoder, TextEncoder });
 if (testCase.response) sandbox.$response = prepare(testCase.response);
 
 vm.runInNewContext(fs.readFileSync(scriptPath, "utf8"), sandbox, { filename: scriptPath, timeout: 10000 });
 
-const done = doneCalls[0];
+let done = doneCalls[0];
+if (done && typeof done === "object" && done.body != null && typeof done.body === "object") {
+  if (!ArrayBuffer.isView(done.body)) throw new Error("done.body is neither string nor Uint8Array");
+  done = Object.assign({}, done, { body: undefined, bodyBase64: Buffer.from(done.body).toString("base64") });
+  delete done.body;
+}
 const result = { done, doneCalls: doneCalls.length, store, notifications, removeCalled };
 if (testCase.aesKey && done && typeof done.body === "string" && done.body) {
   result.plainBody = decrypt(done.body, testCase.aesKey);

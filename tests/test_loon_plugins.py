@@ -1,3 +1,4 @@
+import base64
 import json
 from pathlib import Path
 import re
@@ -16,6 +17,73 @@ HARNESS = ROOT / "tests" / "loon_harness.js"
 SCRIPTS = ROOT / "loon" / "scripts"
 HELLOBIKE_STATIC_KEY = "0199bec97dfa5e0d"
 HELLOBIKE_API = "https://api.hellobike.com/api?homepage.startup.popupWindow"
+TXSPORTS_UA = {"User-Agent": "QQSportsV3/8.2.5 (iPhone; iOS 18.1)"}
+TXSPORTS_AB = "https://config.ab.qq.com/tab/GetTabRemoteConfig?appid=sports"
+
+
+def pb_varint(n):
+    out = bytearray()
+    while n >= 0x80:
+        out.append((n & 0x7F) | 0x80)
+        n >>= 7
+    out.append(n)
+    return bytes(out)
+
+
+def pb_bytes(field, payload):
+    return pb_varint(field << 3 | 2) + pb_varint(len(payload)) + payload
+
+
+def pb_parse(buf):
+    """Decode one protobuf message into [(field, wire, value)]."""
+    fields, p = [], 0
+    while p < len(buf):
+        tag, shift = 0, 0
+        while True:
+            b = buf[p]; p += 1
+            tag |= (b & 0x7F) << shift; shift += 7
+            if not b & 0x80:
+                break
+        field, wire = tag >> 3, tag & 7
+        if wire == 0:
+            v, shift = 0, 0
+            while True:
+                b = buf[p]; p += 1
+                v |= (b & 0x7F) << shift; shift += 7
+                if not b & 0x80:
+                    break
+        elif wire == 2:
+            n, shift = 0, 0
+            while True:
+                b = buf[p]; p += 1
+                n |= (b & 0x7F) << shift; shift += 7
+                if not b & 0x80:
+                    break
+            v = buf[p:p + n]; p += n
+        else:
+            raise ValueError(wire)
+        fields.append((field, wire, v))
+    return fields
+
+
+def ab_config(entries, code=100):
+    """Tencent AB config response: field 1 = code, field 3 = {1: key, 2: {1: value, 4: key}}."""
+    msg = pb_varint(1 << 3) + pb_varint(code)
+    for key, value in entries:
+        k = key.encode()
+        msg += pb_bytes(3, pb_bytes(1, k) + pb_bytes(2, pb_bytes(1, value.encode()) + pb_bytes(4, k)))
+    return msg
+
+
+def ab_values(msg):
+    out = {}
+    for field, _, entry in pb_parse(msg):
+        if field != 3:
+            continue
+        parts = dict((f, v) for f, _, v in pb_parse(entry))
+        inner = dict((f, v) for f, _, v in pb_parse(parts[2]))
+        out[parts[1].decode()] = inner[1].decode()
+    return out
 
 
 class ConverterTests(unittest.TestCase):
@@ -61,6 +129,33 @@ class ConverterTests(unittest.TestCase):
 
         skipping = {"id": "demo", "snippet": "x", "skip_request_body_scripts": ["s.js"]}
         self.assertNotIn("^https://a\\.com/q ", qx2loon.render_plugin(skipping, snippet))
+
+    def test_binary_scripts_get_binary_body_mode(self):
+        snippet = qx2loon.parse_snippet(
+            "^https://a\\.com/z url script-response-body https://e.com/s.js\n"
+            "^https://a\\.com/h url script-response-header https://e.com/s.js\n"
+        )
+        plugin = qx2loon.render_plugin({"id": "demo", "snippet": "x"}, snippet, {"s.js"})
+        self.assertIn("requires-body=true, binary-body-mode=true, tag=demo-s-1", plugin)
+        self.assertIn("s.js, tag=demo-s-2", plugin)
+        self.assertNotIn("binary-body-mode", qx2loon.render_plugin({"id": "demo", "snippet": "x"}, snippet))
+
+    def test_url_and_header_needs_script_side_check(self):
+        line = ("^https:\\/\\/a\\.com\\/t(?:\\?.*)?$ (?i)\\r\\nUser-Agent:\\s*App\\/ "
+                "url-and-header script-response-body https://e.com/s.js")
+        snippet = qx2loon.parse_snippet(line)
+        self.assertEqual(snippet["scripts"][0]["pattern"], "^https:\\/\\/a\\.com\\/t(?:\\?.*)?$")
+        with self.assertRaises(qx2loon.ConvertError):
+            qx2loon.render_plugin({"id": "demo", "snippet": "x"}, snippet)
+        plugin = qx2loon.render_plugin({"id": "demo", "snippet": "x", "header_match_in_script": ["s.js"]}, snippet)
+        self.assertIn("http-response ^https:\\/\\/a\\.com\\/t(?:\\?.*)?$ script-path=", plugin)
+        self.assertNotIn("User-Agent", plugin)
+        for bad in (
+            "^https://a\\.com/t url-and-header script-response-body https://e.com/s.js",
+            "^https://a\\.com/t\\r\\nUA:x url-and-header reject",
+        ):
+            with self.assertRaises(qx2loon.ConvertError, msg=bad):
+                qx2loon.parse_snippet(bad)
 
 
 class GeneratedPluginTests(unittest.TestCase):
@@ -175,6 +270,86 @@ class LoonRuntimeTests(unittest.TestCase):
         result = self.run_script("easybike-ad.js", case)
         data = json.loads(result["plainBody"])["data"]
         self.assertEqual([p["popupWindowType"] for p in data], ["systemNotice"])
+
+
+    # --- Tencent Sports (txsports-ad-clean.js runs with binary-body-mode) ---
+
+    def tx_json(self, url, body, headers=None, request_body=None, **case):
+        request = {"url": url, "method": "GET", "headers": headers or TXSPORTS_UA}
+        if request_body is not None:
+            request.update(method="POST", body=request_body, asBytes=True)
+        raw = json.dumps(body, ensure_ascii=False)
+        case.setdefault("noTextCodec", True)
+        result = self.run_script("txsports-ad-clean.js", dict(case, request=request, response={
+            "status": 200, "headers": {}, "body": raw, "asBytes": True,
+        }))
+        done = result["done"]
+        if "bodyBase64" in done:
+            return json.loads(base64.b64decode(done["bodyBase64"]).decode("utf-8"))
+        self.assertNotIn("body", done, "binary-body-mode needs a Uint8Array body back")
+        return None
+
+    def test_txsports_forces_splash_off_in_binary_ab_config(self):
+        original = ab_config([("iqad_splash_forbid_splash", "0"), ("other_switch", "keep")])
+        for codec in (True, False):
+            result = self.run_script("txsports-ad-clean.js", {
+                "noTextCodec": not codec,
+                "request": {"url": TXSPORTS_AB, "method": "POST", "headers": TXSPORTS_UA},
+                "response": {"status": 200, "headers": {}, "bodyBase64": base64.b64encode(original).decode()},
+            })
+            patched = base64.b64decode(result["done"]["bodyBase64"])
+            self.assertEqual(ab_values(patched), {
+                "iqad_splash_forbid_splash": "1",
+                "other_switch": "keep",
+                "teenager_guide_show_interval": "36500",
+            })
+            self.assertEqual(pb_parse(patched)[0], (1, 0, 100))
+
+    def test_txsports_leaves_other_tencent_apps_alone(self):
+        original = ab_config([("iqad_splash_forbid_splash", "0")])
+        result = self.run_script("txsports-ad-clean.js", {
+            "request": {"url": TXSPORTS_AB, "method": "POST", "headers": {"User-Agent": "QQ/9.0.85 iOS"}},
+            "response": {"status": 200, "headers": {}, "bodyBase64": base64.b64encode(original).decode()},
+        })
+        self.assertEqual(result["done"], {})
+
+    def test_txsports_hides_middle_icon(self):
+        body = self.tx_json("https://app.sports.qq.com/init/config?v=1",
+                            {"code": 0, "data": {"middleIcon": {"isAble": "1", "title": "会员"}}})
+        self.assertEqual(body["data"]["middleIcon"], {"isAble": "0", "title": "会员"})
+
+    def test_txsports_cleans_home_feed(self):
+        feed = {"data": {
+            "hotWords": ["热词"], "coinIcon": {"x": 1}, "adList": "{}",
+            "topItem": [{"type": 1120}, {"type": 1, "adInfos": [{"id": 1}]}],
+            "list": [{"title": "中超直播", "adInfos": [{"id": 2}]}],
+        }}
+        for codec in (True, False):
+            d = self.tx_json("https://app.sports.qq.com/feeds/home", feed, noTextCodec=not codec)["data"]
+            self.assertEqual(d["hotWords"], [])
+            self.assertNotIn("coinIcon", d)
+            self.assertEqual(d["adList"], "")
+            self.assertEqual(d["topItem"], [{"type": 1, "adInfos": []}])
+            self.assertEqual(d["list"], [{"title": "中超直播", "adInfos": []}])
+
+    def test_txsports_unchanged_json_passes_through(self):
+        self.assertIsNone(self.tx_json("https://app.sports.qq.com/init/config", {"data": {"middleIcon": {"isAble": "0"}}}))
+
+    def test_txsports_drops_ssp_ad_order_using_request_body(self):
+        req = json.dumps({"adReqData": {"adtype": 7, "chid": 5, "launch": "0", "slot": [{"loid": "71,73"}]}})
+        resp = {"adList": json.dumps({"index": [{"channel_id": 7247}], "order": [{"oid": 1}]})}
+        body = self.tx_json("https://sports.ssp.qq.com/app", resp, request_body=req)
+        self.assertEqual(json.loads(body["adList"])["order"], [])
+
+    def test_txsports_turns_off_sdk_ads_in_xml(self):
+        xml = "<dict><key>adOn</key><string>YES</string><key>gdtAdOn</key> <string>YES</string></dict>"
+        result = self.run_script("txsports-ad-clean.js", {
+            "noTextCodec": True,
+            "request": {"url": "https://k.ssp.qq.com/getsdkconfig?x=1", "method": "GET", "headers": TXSPORTS_UA},
+            "response": {"status": 200, "headers": {}, "body": xml, "asBytes": True},
+        })
+        out = base64.b64decode(result["done"]["bodyBase64"]).decode()
+        self.assertEqual(out.count("<string>NO</string>"), 2)
 
 
 if __name__ == "__main__":
