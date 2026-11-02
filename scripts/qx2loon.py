@@ -62,6 +62,20 @@ class ConvertError(ValueError):
     pass
 
 
+def split_header_pattern(pattern):
+    """QX ``url-and-header`` regex -> (URL regex, header regex).
+
+    QX matches these against the URL followed by ``\\r\\n`` and the request
+    headers. Loon script rules only see the URL, so the URL half is kept and
+    the header half is returned for the caller to account for.
+    """
+    url, sep, header = pattern.partition(r"\r\n")
+    url = re.sub(r"\(\?[a-z]+\)\s*$", "", url).strip()
+    if not sep or not header.strip() or not re.fullmatch(r"\S+", url):
+        raise ConvertError(f"unsupported url-and-header pattern: {pattern}")
+    return url, header.strip()
+
+
 def wildcard_rule(pattern):
     """QX host-wildcard -> Loon rule body.
 
@@ -118,6 +132,14 @@ def parse_snippet(text):
             snippet["rules"].append(convert_rule(line))
             continue
         tokens = line.split()
+        if "url-and-header" in tokens:
+            i = tokens.index("url-and-header")
+            pattern, header = split_header_pattern(" ".join(tokens[:i]))
+            rest = tokens[i + 1:]
+            if len(rest) != 2 or rest[0] not in SCRIPT_ACTIONS:
+                raise ConvertError(f"unsupported url-and-header rewrite: {line}")
+            snippet["scripts"].append({"pattern": pattern, "action": rest[0], "url": rest[1], "header": header})
+            continue
         if len(tokens) < 3 or tokens[1] != "url":
             raise ConvertError(f"unrecognised line: {line}")
         pattern, action = tokens[0], tokens[2]
@@ -139,7 +161,13 @@ def script_name(url):
     return name
 
 
-def render_plugin(source, snippet):
+def render_plugin(source, snippet, binary_scripts=frozenset()):
+    """Render a Loon plugin.
+
+    ``binary_scripts`` names scripts that read QX's ``bodyBytes``; their body
+    scripts run with Loon's ``binary-body-mode`` so binary payloads arrive
+    intact (qx-compat.js still hands them a decoded ``body`` as well).
+    """
     meta = snippet["meta"]
     snippet_file = source["snippet"].rsplit("/", 1)[-1]
     origin = f"由 Quantumult X 规则 {snippet_file} 自动转换"
@@ -160,18 +188,26 @@ def render_plugin(source, snippet):
         out += ["[Rewrite]", *snippet["rewrites"], ""]
 
     skipped = set(source.get("skip_request_body_scripts", []))
+    header_ok = set(source.get("header_match_in_script", []))
     script_lines = []
     counts = {}
     for s in snippet["scripts"]:
         name = script_name(s["url"])
         if s["action"] == "script-request-body" and name in skipped:
             continue
+        if s.get("header") and name not in header_ok:
+            raise ConvertError(
+                f"{s['pattern']} also matches headers ({s['header']}), which Loon cannot; "
+                f"list {name} in header_match_in_script only if the script checks them itself"
+            )
         loon_type, requires_body = SCRIPT_ACTIONS[s["action"]]
         counts[name] = counts.get(name, 0) + 1
         tag = f"{source['id']}-{name[:-3]}-{counts[name]}"
         opts = [f"script-path={SCRIPT_URL_BASE}{name}"]
         if requires_body:
             opts.append("requires-body=true")
+            if name in binary_scripts:
+                opts.append("binary-body-mode=true")
         opts.append(f"tag={tag}")
         script_lines.append(f"{loon_type} {s['pattern']} {', '.join(opts)}")
     if script_lines:
@@ -205,15 +241,22 @@ def build(sources, fetch=fetch):
         template = f.read()
     files = {}
     script_urls = {}
+    parsed = []
     for source in sources:
         snippet = parse_snippet(fetch(source["snippet"]))
-        files[f"loon/{source['id']}.plugin"] = render_plugin(source, snippet)
+        parsed.append((source, snippet))
         for s in snippet["scripts"]:
             name = script_name(s["url"])
             if script_urls.setdefault(name, s["url"]) != s["url"]:
                 raise ConvertError(f"two upstream scripts share the name {name}")
+    binary_scripts = set()
     for name, url in script_urls.items():
-        files[f"loon/scripts/{name}"] = wrap_script(template, url, fetch(url))
+        code = fetch(url)
+        if re.search(r"\bbodyBytes\b", code):
+            binary_scripts.add(name)
+        files[f"loon/scripts/{name}"] = wrap_script(template, url, code)
+    for source, snippet in parsed:
+        files[f"loon/{source['id']}.plugin"] = render_plugin(source, snippet, binary_scripts)
     return files
 
 

@@ -6,11 +6,55 @@
 (function (loonRequest, loonResponse, loonDone) {
   var isResponse = typeof loonResponse !== "undefined" && loonResponse !== null;
 
+  function isBytes(x) {
+    return x != null && typeof x === "object" &&
+      (ArrayBuffer.isView(x) || Object.prototype.toString.call(x) === "[object ArrayBuffer]");
+  }
+  function toU8(x) {
+    return ArrayBuffer.isView(x) ? new Uint8Array(x.buffer, x.byteOffset, x.byteLength) : new Uint8Array(x);
+  }
   function utf8(bytes) {
     if (typeof TextDecoder === "function") return new TextDecoder("utf-8").decode(bytes);
     var out = "";
-    for (var i = 0; i < bytes.length; i++) out += String.fromCharCode(bytes[i]);
+    for (var i = 0; i < bytes.length; i += 8192) {
+      out += String.fromCharCode.apply(null, Array.prototype.slice.call(bytes.subarray(i, i + 8192)));
+    }
     return decodeURIComponent(escape(out));
+  }
+  function utf8Bytes(text) {
+    if (typeof TextEncoder === "function") return new TextEncoder().encode(text);
+    var s = unescape(encodeURIComponent(text)), b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    return b;
+  }
+
+  // QX gives scripts the body twice: `body` (text) and `bodyBytes` (ArrayBuffer).
+  // Loon gives one `body`: text, or a Uint8Array under binary-body-mode. Expose
+  // both, converting lazily so a script only pays for the form it reads.
+  function bridgeBody(msg) {
+    if (!msg) return false;
+    var raw = msg.body, binary = isBytes(raw), text, bytes;
+    if (raw == null) return false;
+    if (binary) bytes = toU8(raw); else text = raw;
+    Object.defineProperty(msg, "body", {
+      configurable: true, enumerable: true,
+      get: function () {
+        if (text === undefined) {
+          try { text = utf8(bytes); } catch (e) { text = ""; }
+        }
+        return text;
+      },
+      set: function (v) { text = v; bytes = undefined; }
+    });
+    Object.defineProperty(msg, "bodyBytes", {
+      configurable: true, enumerable: true,
+      get: function () {
+        if (bytes === undefined) bytes = utf8Bytes(text == null ? "" : String(text));
+        return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+      },
+      set: function (v) { bytes = toU8(v); text = undefined; }
+    });
+    return binary;
   }
 
   // Shallow copy that also reads the documented fields explicitly, so the
@@ -24,10 +68,10 @@
   }
 
   var request = copy(loonRequest, ["url", "method", "headers", "body"]);
-  // Loon may hand over the body as Uint8Array; QX scripts expect a string.
-  if (request && request.body != null && typeof request.body !== "string") request.body = utf8(request.body);
+  var requestBinary = bridgeBody(request);
 
   var response = isResponse ? copy(loonResponse, ["status", "headers", "body"]) : undefined;
+  var responseBinary = bridgeBody(response);
   // QX names the status code `statusCode`, Loon names it `status`.
   if (response && response.statusCode === undefined && response.status !== undefined) response.statusCode = response.status;
 
@@ -58,6 +102,16 @@
       var code = typeof result.status === "number" ? result.status : Number((/\b(\d{3})\b/.exec(String(result.status)) || [0, 200])[1]);
       loonDone({ response: { status: code, headers: result.headers || {}, body: result.body === undefined ? "" : result.body } });
       return;
+    }
+    // QX scripts may answer with `bodyBytes`; Loon only reads `body`, and under
+    // binary-body-mode expects it as a Uint8Array.
+    if (result && typeof result === "object" && (result.bodyBytes !== undefined || result.body !== undefined)) {
+      var out = {}, k;
+      for (k in result) if (k !== "bodyBytes") out[k] = result[k];
+      var binary = isResponse ? responseBinary : requestBinary;
+      if (isBytes(result.bodyBytes)) out.body = binary ? toU8(result.bodyBytes) : utf8(toU8(result.bodyBytes));
+      else if (binary && typeof out.body === "string") out.body = utf8Bytes(out.body);
+      result = out;
     }
     loonDone(result);
   }
