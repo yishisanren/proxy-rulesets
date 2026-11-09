@@ -1,0 +1,17 @@
+# Apple Intelligence - Loon Rules
+# Updated: 2026-11-09
+# Source: https://support.apple.com/101555
+
+# Siri and dictation
+DOMAIN,guzzoni.apple.com
+
+# Siri, Spotlight and Apple search
+DOMAIN-SUFFIX,smoot.apple.com
+
+# Private Cloud Compute
+DOMAIN,apple-relay.cloudflare.com
+DOMAIN,apple-relay.fastly-edge.com
+DOMAIN,cp4.cloudflare.com
+
+# Apple Intelligence Extensions
+DOMAIN,apple-relay.apple.com
