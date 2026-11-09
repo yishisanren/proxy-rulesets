@@ -1,24 +1,67 @@
-# 富途 & 老虎证券 — 香港时延优选
-# Futu (富途/moomoo/futubull) + Tiger Brokers (老虎证券)
-# Updated: 2026-06-28
+# 富途 & 老虎证券 — 域名分流
+# Futu / moomoo / Futubull + Tiger Brokers
+# Updated: 2026-11-10
 # Maintainer: yishisanren
+# 出口地区由客户端策略指定；本文件不指定香港或美国节点。
+# 后缀规则包含根域及子域；直接 IP 连接须另行核对。
 
-# ===== 富途 Futu =====
-DOMAIN-SUFFIX,futunn.com
-DOMAIN-SUFFIX,moomoo.com
-DOMAIN-SUFFIX,futuhk.com
-DOMAIN-SUFFIX,futustatic.com
-DOMAIN-SUFFIX,futuhn.com
+# ===== 富途 Futu / moomoo =====
+# Sources: https://github.com/v2fly/domain-list-community/blob/master/data/futu
+# Official: https://www.futuhongkong.com/ https://www.futuchain.com/
+# Official: https://www.futuhk.com/about-us/newsroom/futu-trustee-launches-groundbreaking-futu-pension-family-trust
+# Official: https://www.moomoobull.com/
+DOMAIN-SUFFIX,futu.cn
+DOMAIN-SUFFIX,futu.link
+DOMAIN-SUFFIX,futu5.com
+DOMAIN-SUFFIX,futuau.com
+DOMAIN-SUFFIX,futuchain.com
+DOMAIN-SUFFIX,futuesop.com
 DOMAIN-SUFFIX,futufin.com
+DOMAIN-SUFFIX,futuhk.com
+DOMAIN-SUFFIX,futuhk1.com
+DOMAIN-SUFFIX,futuhk2.com
+DOMAIN-SUFFIX,futuhkapp.com
+DOMAIN-SUFFIX,futuhn.com
+DOMAIN-SUFFIX,futuholdings.com
+DOMAIN-SUFFIX,futuhongkong.com
+DOMAIN-SUFFIX,futuniuniu.com
+DOMAIN-SUFFIX,futunn.com
+DOMAIN-SUFFIX,futuoa.com
+DOMAIN-SUFFIX,futusg.com
+DOMAIN-SUFFIX,futustatic.com
 DOMAIN-SUFFIX,fututrade.com
+DOMAIN-SUFFIX,fututrustee.com
+DOMAIN-SUFFIX,moomoo.com
+DOMAIN-SUFFIX,moomoobull.com
+DOMAIN-SUFFIX,moomooequity.com
+DOMAIN-SUFFIX,moomootrustee.com
 DOMAIN,collect.futunn.com
 
 # ===== 老虎证券 Tiger Brokers =====
-DOMAIN-SUFFIX,laohu8.com
+# Sources: https://github.com/v2fly/domain-list-community/blob/master/data/itiger
+# Official: https://www.itiger.com/sg/ https://www.itiger.com/hk/
+# Official: https://www.itiger.com/au/ https://www.itiger.com/nz/
+# Official: https://www.tigeresop.com/ https://www.uponeshare.com/
 DOMAIN-SUFFIX,itiger.com
+DOMAIN-SUFFIX,itigergrowth.com
+DOMAIN-SUFFIX,itigergrowtha.com
+DOMAIN-SUFFIX,itigerup.com
+DOMAIN-SUFFIX,laohu8.com
 DOMAIN-SUFFIX,skytigris.cn
 DOMAIN-SUFFIX,skytigris.com
-DOMAIN-SUFFIX,tigerfintech.com
+DOMAIN-SUFFIX,tigerbbs.cn
+DOMAIN-SUFFIX,tigerbbs.com
 DOMAIN-SUFFIX,tigerbrokers.com
+DOMAIN-SUFFIX,tigerbrokers.com.au
+DOMAIN-SUFFIX,tigerbrokers.com.hk
 DOMAIN-SUFFIX,tigerbrokers.com.sg
 DOMAIN-SUFFIX,tigerbrokers.net
+DOMAIN-SUFFIX,tigerbrokers.nz
+DOMAIN-SUFFIX,tigeresop.com
+DOMAIN-SUFFIX,tigerfintech.com
+DOMAIN-SUFFIX,tigerkickoff.com
+DOMAIN-SUFFIX,tigersecurities.com
+DOMAIN-SUFFIX,tigershowtime.com
+DOMAIN-SUFFIX,tigertrade.app
+DOMAIN-SUFFIX,uponeshare.com
+DOMAIN-SUFFIX,xiaohu8.com

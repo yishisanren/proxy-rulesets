@@ -76,6 +76,12 @@ proxy-rulesets/
 https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-karing.srs
 ```
 
+券商规则覆盖富途 / moomoo 25 个、老虎 23 个域名后缀，包含根域与子域。
+来源包括 [v2fly 富途规则](https://github.com/v2fly/domain-list-community/blob/master/data/futu)、[老虎规则](https://github.com/v2fly/domain-list-community/blob/master/data/itiger) 及两家券商的官方地区站、下载、静态资源和业务站点；具体链接见 `.list` 注释。
+
+`broker-hk` 只定义匹配范围，实际出口由客户端选择，可指定其他地区节点。
+此域名集不包含直接 IP 连接；分流时需检查规则顺序与实际连接命中，域名匹配不代表账户地区或服务权限随之改变。
+
 ### 🧩 Loon 插件（App 净化，需开启 MITM 并信任证书）
 
 上游为 [ZenmoFeiShi/Qx](https://github.com/ZenmoFeiShi/Qx) 的 Quantumult X 规则，
@@ -111,7 +117,7 @@ https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-kari
 | 规则集 | 精确 domain | 后缀 domain_suffix | 合计 |
 |---|---|---|---|
 | adblock | 15,213 | 132,102 | **147,315** |
-| broker-hk | 1 | 15 | **16** |
+| broker-hk | 1 | 48 | **49** |
 | AI 聚合 | 29 | 601 | **630** |
 
 ### 去广告上游来源（6 源合并去重）
