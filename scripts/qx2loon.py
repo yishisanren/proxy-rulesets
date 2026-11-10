@@ -174,11 +174,16 @@ def render_plugin(source, snippet, binary_scripts=frozenset()):
     if meta.get("update"):
         origin += f"，上游更新于 {meta['update']}"
     desc = f"{meta['desc']}（{origin}）" if meta.get("desc") else origin + "。"
+    # Upstream snippets without #!meta would otherwise ship a plugin named after
+    # the bare id and described only by its provenance; sources.json may set
+    # `name` / `desc` for those.
+    name = source.get("name") or meta.get("name") or source["id"]
+    desc = source.get("desc") or desc
 
     out = [
-        f"#!name = {meta.get('name') or source['id']}",
+        f"#!name = {name}",
         f"#!desc = {desc}",
-        f"#!author = {meta.get('author', 'unknown')}",
+        f"#!author = {meta.get('author') or source.get('author') or 'unknown'}",
         f"#!homepage = {source.get('homepage', source['snippet'])}",
         "",
     ]

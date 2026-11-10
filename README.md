@@ -24,10 +24,11 @@ proxy-rulesets/
 │   ├── ai-all-karing.json       source v2
 │   ├── ai-all.srs               SRS binary v1 — NekoBox / NekoRay / 旧内核
 │   └── ai-all.json              source v1
-├── loon/             Loon 插件（由 ZenmoFeiShi/Qx 的 QX 规则每日自动转换）
+├── loon/             Loon 插件（由上游 QX 规则每日自动转换，来源见 sources.json）
 │   ├── meituan.plugin           美团 App 净化
 │   ├── hellobike.plugin         哈啰 App 净化
 │   ├── txsports.plugin          腾讯体育 App 净化
+│   ├── hupu.plugin              虎扑 App 净化
 │   ├── scripts/                 插件引用的脚本（上游原脚本 + QX→Loon 兼容层）
 │   ├── compat/qx-compat.js      兼容层模板
 │   └── sources.json             上游来源清单
@@ -84,7 +85,7 @@ https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-kari
 
 ### 🧩 Loon 插件（App 净化，需开启 MITM 并信任证书）
 
-上游为 [ZenmoFeiShi/Qx](https://github.com/ZenmoFeiShi/Qx) 的 Quantumult X 规则，
+上游为 [ZenmoFeiShi/Qx](https://github.com/ZenmoFeiShi/Qx) 和 [akaagiao1/quantumult-x-scripts](https://github.com/akaagiao1/quantumult-x-scripts) 的 Quantumult X 规则，
 `.github/workflows/loon-plugins.yml` 每天自动拉取并转换。
 
 | 插件 | 订阅地址（拼在上述前缀后） | 一键导入 |
@@ -92,10 +93,13 @@ https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-kari
 | 美团 App 净化 | `loon/meituan.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Fmeituan.plugin) |
 | 哈啰 App 净化 | `loon/hellobike.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Fhellobike.plugin) |
 | 腾讯体育 App 净化 | `loon/txsports.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Ftxsports.plugin) |
+| 虎扑 App 净化 | `loon/hupu.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Fhupu.plugin) |
 
 > 哈啰插件首次使用：打开哈啰 App 后若收到"已捕获本机动态密钥"通知，重新进入首页和"我的"页面即可生效。
 >
 > 腾讯体育插件：开屏广告的开关是 App 启动时拉取的配置，装好插件后完全退出腾讯体育、重新打开一两次才会看到开屏广告消失。
+>
+> 虎扑插件：只拦 `goblin.hupu.com` 上 8.2.67 版本的 `interfaceAd/getOther` 接口，返回体里 `ads` 被清空。虎扑升级版本号后接口路径会变，插件随即失效，需要上游同步更新规则。
 
 ---
 

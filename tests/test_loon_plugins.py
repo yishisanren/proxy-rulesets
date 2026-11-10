@@ -158,6 +158,22 @@ class ConverterTests(unittest.TestCase):
                 qx2loon.parse_snippet(bad)
 
 
+class SourceMetaTests(unittest.TestCase):
+    def test_source_meta_overrides_for_snippets_without_bang_meta(self):
+        snippet = qx2loon.parse_snippet(
+            "^https://a\\.com/z url script-response-body https://e.com/s.js\n"
+            "hostname = a.com\n"
+        )
+        plugin = qx2loon.render_plugin(
+            {"id": "demo", "snippet": "https://e.com/demo.conf", "name": "演示 净化",
+             "desc": "上游没有 #!meta 时的说明", "author": "up"},
+            snippet,
+        )
+        self.assertIn("#!name = 演示 净化\n", plugin)
+        self.assertIn("#!desc = 上游没有 #!meta 时的说明\n", plugin)
+        self.assertIn("#!author = up\n", plugin)
+
+
 class GeneratedPluginTests(unittest.TestCase):
     def test_plugins_reference_only_mirrored_scripts(self):
         sources = json.loads((ROOT / "loon" / "sources.json").read_text(encoding="utf-8"))["plugins"]
@@ -350,6 +366,41 @@ class LoonRuntimeTests(unittest.TestCase):
         })
         out = base64.b64decode(result["done"]["bodyBase64"]).decode()
         self.assertEqual(out.count("<string>NO</string>"), 2)
+
+    # --- Hupu (hupu-ad-test.js clears the ads array on one API) ---
+
+    HUPU_AD = "https://goblin.hupu.com/3/8.2.67/interfaceAd/getOther/v3?device=1"
+
+    def hupu(self, url, body):
+        return self.run_script("hupu-ad-test.js", {
+            "request": {"url": url, "method": "GET", "headers": {}},
+            "response": {"status": 200, "headers": {}, "body": json.dumps(body)},
+        })
+
+    def test_hupu_empties_ad_list(self):
+        for path in ("v3", "batch"):
+            with self.subTest(path=path):
+                url = self.HUPU_AD.replace("/v3", "/" + path)
+                result = self.hupu(url, {"ad_code": 1, "ads": [{"id": 1}, {"id": 2}]})
+                self.assertEqual(json.loads(result["done"]["body"])["ads"], [])
+
+    def test_hupu_leaves_other_responses_alone(self):
+        for url, body in (
+            (self.HUPU_AD.replace("/v3", "/v4"), {"ad_code": 1, "ads": [{"id": 1}]}),
+            ("https://goblin.hupu.com/3/8.2.66/interfaceAd/getOther/v3", {"ad_code": 1, "ads": [{"id": 1}]}),
+            ("https://goblin.hupu.com/3/8.2.67/interfaceAd/getOther/v3", {"ad_code": 0, "ads": [{"id": 1}]}),
+            ("https://goblin.hupu.com/3/8.2.67/interfaceAd/getOther/v3", {"ad_code": 1, "ads": []}),
+            ("https://goblin.hupu.com/3/8.2.67/interfaceAd/getOther/v3", {"ad_code": 1, "ads": {}}),
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(self.hupu(url, body)["done"], {})
+
+    def test_hupu_survives_non_json_body(self):
+        result = self.run_script("hupu-ad-test.js", {
+            "request": {"url": self.HUPU_AD, "method": "GET", "headers": {}},
+            "response": {"status": 200, "headers": {}, "body": "<html>"},
+        })
+        self.assertEqual(result["done"], {})
 
 
 if __name__ == "__main__":

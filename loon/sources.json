@@ -22,6 +22,14 @@
         "txsports-ad-clean.js"
       ],
       "header_match_reason": "QX 只对 User-Agent 为 QQSportsV3 的 config.ab.qq.com 请求运行脚本；Loon 的脚本规则只能按 URL 匹配，但 txsports-ad-clean.js 自己会核对 User-Agent，其他腾讯 App 的请求原样放行。"
+    },
+    {
+      "id": "hupu",
+      "snippet": "https://raw.githubusercontent.com/akaagiao1/quantumult-x-scripts/main/hupu/hupu-ad.conf",
+      "homepage": "https://github.com/akaagiao1/quantumult-x-scripts",
+      "name": "虎扑 App 净化",
+      "author": "akaagiao1",
+      "desc": "清空虎扑 goblin.hupu.com 广告接口返回的 ads 列表，异常响应原样放行。只匹配 8.2.67 版本的 interfaceAd/getOther 接口，虎扑换版本后需同步改规则。"
     }
   ]
 }
