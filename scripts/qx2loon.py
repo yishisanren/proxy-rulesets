@@ -25,6 +25,7 @@ LOON_DIR = os.path.join(ROOT, "loon")
 SCRIPTS_DIR = os.path.join(LOON_DIR, "scripts")
 COMPAT_PATH = os.path.join(LOON_DIR, "compat", "qx-compat.js")
 SCRIPT_URL_BASE = "https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/loon/scripts/"
+REPO = "yishisanren/proxy-rulesets"
 SCRIPT_MARKER = "/*__QX_SCRIPT__*/"
 
 # QX filter type -> Loon rule type
@@ -184,7 +185,7 @@ def render_plugin(source, snippet, binary_scripts=frozenset()):
         f"#!name = {name}",
         f"#!desc = {desc}",
         f"#!author = {meta.get('author') or source.get('author') or 'unknown'}",
-        f"#!homepage = {source.get('homepage', source['snippet'])}",
+        f"#!homepage = {meta.get('homepage') or source.get('homepage') or source['snippet']}",
         "",
     ]
     if snippet["rules"]:
@@ -229,6 +230,25 @@ def wrap_script(template, source_url, code):
     return head.replace("__QX_SOURCE_URL__", source_url) + code.rstrip() + "\n" + tail
 
 
+def load(url, fetcher=None):
+    """Read an upstream URL or a repo-relative file.
+
+    A source may keep its snippet and scripts in this repo (``loon/sources/``)
+    when the upstream rule is not usable as-is but is worth tracking; those
+    entries never touch the network, so a broken upstream cannot fail the build.
+    """
+    if url.startswith(("http://", "https://")):
+        return (fetcher or fetch)(url)
+    with open(os.path.join(ROOT, url), encoding="utf-8") as f:
+        return f.read()
+
+
+def script_display_url(url):
+    if url.startswith(("http://", "https://")):
+        return url
+    return f"https://github.com/{REPO}/blob/main/{url}"
+
+
 def fetch(url, attempts=4):
     for i in range(attempts):
         try:
@@ -248,7 +268,7 @@ def build(sources, fetch=fetch):
     script_urls = {}
     parsed = []
     for source in sources:
-        snippet = parse_snippet(fetch(source["snippet"]))
+        snippet = parse_snippet(load(source["snippet"], fetch))
         parsed.append((source, snippet))
         for s in snippet["scripts"]:
             name = script_name(s["url"])
@@ -256,10 +276,10 @@ def build(sources, fetch=fetch):
                 raise ConvertError(f"two upstream scripts share the name {name}")
     binary_scripts = set()
     for name, url in script_urls.items():
-        code = fetch(url)
+        code = load(url, fetch)
         if re.search(r"\bbodyBytes\b", code):
             binary_scripts.add(name)
-        files[f"loon/scripts/{name}"] = wrap_script(template, url, code)
+        files[f"loon/scripts/{name}"] = wrap_script(template, script_display_url(url), code)
     for source, snippet in parsed:
         files[f"loon/{source['id']}.plugin"] = render_plugin(source, snippet, binary_scripts)
     return files

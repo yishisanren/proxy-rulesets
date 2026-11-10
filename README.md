@@ -29,6 +29,7 @@ proxy-rulesets/
 │   ├── hellobike.plugin         哈啰 App 净化
 │   ├── txsports.plugin          腾讯体育 App 净化
 │   ├── hupu.plugin              虎扑 App 净化
+│   ├── sources/                 自维护的 QX 规则源（上游规则需改动时放这里）
 │   ├── scripts/                 插件引用的脚本（上游原脚本 + QX→Loon 兼容层）
 │   ├── compat/qx-compat.js      兼容层模板
 │   └── sources.json             上游来源清单
@@ -99,7 +100,7 @@ https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-kari
 >
 > 腾讯体育插件：开屏广告的开关是 App 启动时拉取的配置，装好插件后完全退出腾讯体育、重新打开一两次才会看到开屏广告消失。
 >
-> 虎扑插件：只拦 `goblin.hupu.com` 上 8.2.67 版本的 `interfaceAd/getOther` 接口，返回体里 `ads` 被清空。虎扑升级版本号后接口路径会变，插件随即失效，需要上游同步更新规则。
+> 虎扑插件：只处理 `goblin.hupu.com` 的 `interfaceAd/getOther` 接口（v3 / batch，版本号不限），清空返回体里的 `ads` 数组；信息流、开屏等其他广告位不在覆盖范围。规则文件放在 `loon/sources/`，按任意版本号匹配，虎扑升级不会导致失效。
 
 ---
 

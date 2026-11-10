@@ -1,10 +1,10 @@
 #!name = 虎扑 App 净化
-#!desc = 清空虎扑 goblin.hupu.com 广告接口返回的 ads 列表，异常响应原样放行。只匹配 8.2.67 版本的 interfaceAd/getOther 接口，虎扑换版本后需同步改规则。
-#!author = akaagiao1
+#!desc = 清空虎扑 goblin.hupu.com 广告接口返回的 ads 数组，异常响应原样放行（由 Quantumult X 规则 hupu.conf 自动转换）
+#!author = yishisanren
 #!homepage = https://github.com/akaagiao1/quantumult-x-scripts
 
 [Script]
-http-response ^https:\/\/goblin\.hupu\.com\/3\/8\.2\.67\/interfaceAd\/getOther\/(?:v3|batch)(?:\?|$) script-path=https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/loon/scripts/hupu-ad-test.js, requires-body=true, tag=hupu-hupu-ad-test-1
+http-response ^https:\/\/goblin\.hupu\.com\/3\/[0-9]+\.[0-9]+\.[0-9]+\/interfaceAd\/getOther\/(v3|batch)(\?|$) script-path=https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/loon/scripts/hupu-ad.js, requires-body=true, tag=hupu-hupu-ad-1
 
 [MITM]
 hostname = goblin.hupu.com

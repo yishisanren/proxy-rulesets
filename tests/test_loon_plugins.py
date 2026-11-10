@@ -174,6 +174,24 @@ class SourceMetaTests(unittest.TestCase):
         self.assertIn("#!author = up\n", plugin)
 
 
+class LocalSourceTests(unittest.TestCase):
+    def test_local_source_needs_no_network(self):
+        def boom(url):
+            raise AssertionError(f"local source must not fetch: {url}")
+
+        sources = json.loads((ROOT / "loon" / "sources.json").read_text(encoding="utf-8"))["plugins"]
+        hupu = [s for s in sources if s["id"] == "hupu"]
+        self.assertEqual(len(hupu), 1)
+        files = qx2loon.build(hupu, fetch=boom)
+        plugin = files["loon/hupu.plugin"]
+        # 版本号必须是通配的，否则 App 一升级规则就静默失效
+        self.assertIn(r"[0-9]+\.[0-9]+\.[0-9]+", plugin)
+        self.assertNotIn("8.2.67", plugin)
+        self.assertIn("hostname = goblin.hupu.com", plugin)
+        script = files["loon/scripts/hupu-ad.js"]
+        self.assertIn("loon/sources/hupu-ad.js", script)  # 溯源到本仓库文件
+
+
 class GeneratedPluginTests(unittest.TestCase):
     def test_plugins_reference_only_mirrored_scripts(self):
         sources = json.loads((ROOT / "loon" / "sources.json").read_text(encoding="utf-8"))["plugins"]
@@ -369,34 +387,41 @@ class LoonRuntimeTests(unittest.TestCase):
 
     # --- Hupu (hupu-ad-test.js clears the ads array on one API) ---
 
-    HUPU_AD = "https://goblin.hupu.com/3/8.2.67/interfaceAd/getOther/v3?device=1"
+    HUPU_AD = "https://goblin.hupu.com/3/8.2.68/interfaceAd/getOther/v3?device=1"
 
     def hupu(self, url, body):
-        return self.run_script("hupu-ad-test.js", {
+        return self.run_script("hupu-ad.js", {
             "request": {"url": url, "method": "GET", "headers": {}},
             "response": {"status": 200, "headers": {}, "body": json.dumps(body)},
         })
 
     def test_hupu_empties_ad_list(self):
-        for path in ("v3", "batch"):
-            with self.subTest(path=path):
-                url = self.HUPU_AD.replace("/v3", "/" + path)
-                result = self.hupu(url, {"ad_code": 1, "ads": [{"id": 1}, {"id": 2}]})
-                self.assertEqual(json.loads(result["done"]["body"])["ads"], [])
+        # 版本号任意：8.2.67 抓的规则，8.2.68 及以后仍要命中
+        for version in ("8.2.67", "8.2.68", "9.0.0"):
+            for path in ("v3", "batch"):
+                with self.subTest(version=version, path=path):
+                    url = self.HUPU_AD.replace("8.2.68", version).replace("/v3", "/" + path)
+                    result = self.hupu(url, {"ad_code": 1, "ads": [{"id": 1}, {"id": 2}]})
+                    self.assertEqual(json.loads(result["done"]["body"])["ads"], [])
+
+    def test_hupu_ignores_ad_code(self):
+        # 上游要求 ad_code === 1，这里只认 ads 数组本身
+        result = self.hupu(self.HUPU_AD, {"ad_code": 0, "ads": [{"id": 1}]})
+        self.assertEqual(json.loads(result["done"]["body"])["ads"], [])
 
     def test_hupu_leaves_other_responses_alone(self):
         for url, body in (
             (self.HUPU_AD.replace("/v3", "/v4"), {"ad_code": 1, "ads": [{"id": 1}]}),
-            ("https://goblin.hupu.com/3/8.2.66/interfaceAd/getOther/v3", {"ad_code": 1, "ads": [{"id": 1}]}),
-            ("https://goblin.hupu.com/3/8.2.67/interfaceAd/getOther/v3", {"ad_code": 0, "ads": [{"id": 1}]}),
-            ("https://goblin.hupu.com/3/8.2.67/interfaceAd/getOther/v3", {"ad_code": 1, "ads": []}),
-            ("https://goblin.hupu.com/3/8.2.67/interfaceAd/getOther/v3", {"ad_code": 1, "ads": {}}),
+            ("https://goblin.hupu.com/2/8.2.68/interfaceAd/getOther/v3", {"ad_code": 1, "ads": [{"id": 1}]}),
+            ("https://goblin.hupu.com/3/8.2.68/interfaceAd/getOther", {"ad_code": 1, "ads": [{"id": 1}]}),
+            ("https://goblin.hupu.com/3/8.2.68/interfaceAd/getOther/v3", {"ad_code": 1, "ads": []}),
+            ("https://goblin.hupu.com/3/8.2.68/interfaceAd/getOther/v3", {"ad_code": 1, "ads": {}}),
         ):
             with self.subTest(url=url):
                 self.assertEqual(self.hupu(url, body)["done"], {})
 
     def test_hupu_survives_non_json_body(self):
-        result = self.run_script("hupu-ad-test.js", {
+        result = self.run_script("hupu-ad.js", {
             "request": {"url": self.HUPU_AD, "method": "GET", "headers": {}},
             "response": {"status": 200, "headers": {}, "body": "<html>"},
         })
