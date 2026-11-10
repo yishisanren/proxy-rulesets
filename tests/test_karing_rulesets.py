@@ -67,6 +67,21 @@ class KaringRuleSetTests(unittest.TestCase):
                 self.assertEqual(derived["rules"], source["rules"])
                 self.assertEqual(karing_srs_path.read_bytes()[:4], SRS_V2_MAGIC)
 
+    def test_broker_packages_sidecar_is_merged(self):
+        packages = [
+            line.split("#", 1)[0].strip()
+            for line in (ROOT / "broker" / "broker-hk.packages").read_text(encoding="utf-8").splitlines()
+        ]
+        packages = [p for p in packages if p]
+        self.assertTrue(packages)
+        for name in ("broker-hk.json", "broker-hk-karing.json"):
+            with self.subTest(rule_set=name):
+                data = json.loads((ROOT / "broker" / name).read_text(encoding="utf-8"))
+                rules = [r for r in data["rules"] if "package_name" in r]
+                self.assertEqual(len(rules), 1)
+                self.assertEqual(set(rules[0]), {"package_name"})
+                self.assertEqual(rules[0]["package_name"], packages)
+
     def test_adblock_karing_artifact_is_v2(self):
         srs_path = ROOT / "adblock" / "ad-reject.srs"
         self.assertEqual(srs_path.read_bytes()[:4], SRS_V2_MAGIC)

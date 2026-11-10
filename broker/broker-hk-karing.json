@@ -38,6 +38,7 @@
         "itigergrowtha.com",
         "itigerup.com",
         "laohu8.com",
+        "play-analytics.com",
         "skytigris.cn",
         "skytigris.com",
         "tigerbbs.cn",
@@ -54,8 +55,15 @@
         "tigersecurities.com",
         "tigershowtime.com",
         "tigertrade.app",
+        "tradeup.com",
         "uponeshare.com",
         "xiaohu8.com"
+      ]
+    },
+    {
+      "package_name": [
+        "cn.futu.trader.universal",
+        "com.tigerbrokers.stock"
       ]
     }
   ]

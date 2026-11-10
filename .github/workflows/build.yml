@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "broker/*.list"
+      - "broker/*.packages"
       - "ai/ai-all.json"
       - "scripts/**"
       - "tests/**"

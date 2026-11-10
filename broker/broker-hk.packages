@@ -1,0 +1,6 @@
+# 券商 App 包名（sing-box package_name，仅 Android 生效）
+# 由 loon2singbox.py 合入 broker-hk.json / .srs；.list 不含此项，Loon / Surge 不受影响。
+# 按包名匹配可覆盖 App 不经 DNS、直接连 IP 的流量（如富途内置的腾讯云海外服务器 IP）。
+# 已核实：2026-11-11 本机安装包。
+cn.futu.trader.universal
+com.tigerbrokers.stock

@@ -78,11 +78,23 @@ proxy-rulesets/
 https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-karing.srs
 ```
 
-券商规则覆盖富途 / moomoo 25 个、老虎 23 个域名后缀，包含根域与子域。
+券商规则覆盖富途 / moomoo 25 个、老虎 25 个域名后缀，包含根域与子域。
 来源包括 [v2fly 富途规则](https://github.com/v2fly/domain-list-community/blob/master/data/futu)、[老虎规则](https://github.com/v2fly/domain-list-community/blob/master/data/itiger) 及两家券商的官方地区站、下载、静态资源和业务站点；具体链接见 `.list` 注释。
 
 `broker-hk` 只定义匹配范围，实际出口由客户端选择，可指定其他地区节点。
-此域名集不包含直接 IP 连接；分流时需检查规则顺序与实际连接命中，域名匹配不代表账户地区或服务权限随之改变。
+
+富途 App 有相当一部分连接不经过 DNS，直接连内置或下发的腾讯云海外 IP（43.x、101.32.x、119.28.x、124.156.x、129.226.x、170.106.x、49.51.x 等），只靠域名规则匹配不到。
+因此 sing-box 产物（`.json` / `.srs`）额外带一条 `package_name` 规则（来自 `broker/broker-hk.packages`），按 Android 包名把两家 App 的全部连接都匹配进来，包括直连 IP：
+
+| App | 包名 |
+|---|---|
+| 富途牛牛 | `cn.futu.trader.universal` |
+| 老虎证券 | `com.tigerbrokers.stock` |
+
+- 包名匹配只在 Android 上的 sing-box 系客户端（Karing、NekoBox、sing-box 官方客户端等）生效，客户端需要能识别连接来源 App（TUN 模式一般可以）；其他平台会忽略这条规则。
+- `.list` 只含域名，Loon / Surge / Clash 不受影响。Clash / mihomo 在 Android 上可自行加 `PROCESS-NAME,cn.futu.trader.universal` 等规则。
+- 不收录直连 IP：这些 IP 属于腾讯云共享网段，写网段会误伤其他腾讯海外服务，写单个 IP 又会随服务器调度失效。它们都不在 GeoIP CN 中，常见的"国内直连、其余代理"配置也会让它们走代理。
+- 规则集要排在 `geosite-cn` / `geoip-cn` 等直连规则之前。域名匹配不代表账户地区或服务权限随之改变。
 
 ### 🧩 Loon 插件（App 净化，需开启 MITM 并信任证书）
 
@@ -111,7 +123,7 @@ https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-kari
 - **Karing** 及新版 sing-box 内核使用 **SRS v2**（`53 52 53 02`）。
 - **NekoBox / NekoRay** 内置的 sing-box core 通常偏旧，只吃 **SRS v1**（`53 52 53 01`）；喂 v2 会加载失败。
 
-因此每类规则都保留旧内核可用的 v1 产物；Karing 使用明确标注的 v2 产物。本仓库的规则只含 `domain` / `domain_suffix`，两版规则数据完全一致。
+因此每类规则都保留旧内核可用的 v1 产物；Karing 使用明确标注的 v2 产物。本仓库的规则只含 `domain` / `domain_suffix`（broker 另有 `package_name`），v1 与 v2 两版规则数据完全一致。
 
 > 若二进制版仍加载不了（个别更旧的魔改 core），改用 **Source 格式的 `.json`**，纯文本解析不受二进制版本限制。
 
@@ -122,7 +134,7 @@ https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-kari
 | 规则集 | 精确 domain | 后缀 domain_suffix | 合计 |
 |---|---|---|---|
 | adblock | 15,213 | 132,102 | **147,315** |
-| broker-hk | 1 | 48 | **49** |
+| broker-hk | 1 | 50 | **51**（另含 2 个 App 包名） |
 | AI 聚合 | 29 | 601 | **630** |
 
 ### 去广告上游来源（6 源合并去重）
@@ -144,7 +156,7 @@ https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-kari
 bash build.sh
 ```
 
-- **broker** 规则会由 GitHub Actions 在 `broker/*.list` 改动时自动重建 v1 与 Karing v2 产物。
+- **broker** 规则会由 GitHub Actions 在 `broker/*.list` 或 `broker/*.packages` 改动时自动重建 v1 与 Karing v2 产物。
 - **AI** 的 Karing v2 产物会在 `ai/ai-all.json` 改动时由 GitHub Actions 自动重建。
 - **adblock** 规则依赖 6 个外部上游源、数据量大，不在每次 push 时自动拉取；需要刷新时本地跑 `bash build.sh`。
 

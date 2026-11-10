@@ -8,7 +8,8 @@ Output format notes
 -------------------
 - The source JSON is emitted as **version 1**. Rule-set schema version 1
   already covers every matcher this converter produces (domain /
-  domain_suffix / domain_keyword / domain_regex / ip_cidr), and v1 is the
+  domain_suffix / domain_keyword / domain_regex / ip_cidr / package_name),
+  and v1 is the
   most widely compatible: older sing-box cores embedded in clients like
   **NekoBox / NekoRay** reject the newer SRS binary v2/v3 produced from a
   version 2/3 source, but accept v1. Emitting v1 keeps the generated
@@ -17,6 +18,10 @@ Output format notes
 - When an output .srs path is given (or ``sing-box`` is on PATH), the
   script also compiles the source JSON to a binary ``.srs`` so clients
   that want the binary "remote / binary" ruleset form can subscribe to it.
+
+If a sibling ``<name>.packages`` file exists, its Android package names are
+emitted as a ``package_name`` rule (sing-box only; the ``.list`` stays
+domain-only for Loon / Surge / Clash).
 
 Each matcher type is emitted as its own rule object so the rule-set
 matches with OR semantics across types (sing-box AND-combines different
@@ -38,7 +43,27 @@ TYPE_MAP = {
     "IP-CIDR6": "ip_cidr",
 }
 # Field emission order (stable, readable output)
-FIELD_ORDER = ["domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr"]
+FIELD_ORDER = ["domain", "domain_suffix", "domain_keyword", "domain_regex", "ip_cidr", "package_name"]
+
+
+def load_packages(list_path):
+    """Read optional Android package names from a sibling ``<name>.packages``.
+
+    Package matching is a sing-box feature (Android only). It lives in a
+    sidecar file instead of the ``.list`` so Loon / Surge subscriptions are
+    not fed rule types they cannot parse. One package name per line; blank
+    lines and ``#`` comments are ignored.
+    """
+    path = os.path.splitext(list_path)[0] + ".packages"
+    if not os.path.isfile(path):
+        return []
+    names = []
+    with open(path, encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.split("#", 1)[0].strip()
+            if line and line not in names:
+                names.append(line)
+    return names
 
 
 def convert(in_path, out_path, srs_path=None):
@@ -63,6 +88,11 @@ def convert(in_path, out_path, srs_path=None):
             if value not in seen[field]:
                 seen[field].add(value)
                 buckets[field].append(value)
+
+    for pkg in load_packages(in_path):
+        if pkg not in seen["package_name"]:
+            seen["package_name"].add(pkg)
+            buckets["package_name"].append(pkg)
 
     rules = []
     for field in FIELD_ORDER:

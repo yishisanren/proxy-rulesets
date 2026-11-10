@@ -1,6 +1,6 @@
 # 富途 & 老虎证券 — 域名分流
 # Futu / moomoo / Futubull + Tiger Brokers
-# Updated: 2026-11-10
+# Updated: 2026-11-11
 # Maintainer: yishisanren
 # 出口地区由客户端策略指定；本文件不指定香港或美国节点。
 # 后缀规则包含根域及子域；直接 IP 连接须另行核对。
@@ -42,11 +42,13 @@ DOMAIN,collect.futunn.com
 # Official: https://www.itiger.com/sg/ https://www.itiger.com/hk/
 # Official: https://www.itiger.com/au/ https://www.itiger.com/nz/
 # Official: https://www.tigeresop.com/ https://www.uponeshare.com/
+# Observed: 2026-11-11 老虎证券 App 启动抓包（community-service.tradeup.com；up/cg/dnha.play-analytics.com）
 DOMAIN-SUFFIX,itiger.com
 DOMAIN-SUFFIX,itigergrowth.com
 DOMAIN-SUFFIX,itigergrowtha.com
 DOMAIN-SUFFIX,itigerup.com
 DOMAIN-SUFFIX,laohu8.com
+DOMAIN-SUFFIX,play-analytics.com
 DOMAIN-SUFFIX,skytigris.cn
 DOMAIN-SUFFIX,skytigris.com
 DOMAIN-SUFFIX,tigerbbs.cn
@@ -63,5 +65,6 @@ DOMAIN-SUFFIX,tigerkickoff.com
 DOMAIN-SUFFIX,tigersecurities.com
 DOMAIN-SUFFIX,tigershowtime.com
 DOMAIN-SUFFIX,tigertrade.app
+DOMAIN-SUFFIX,tradeup.com
 DOMAIN-SUFFIX,uponeshare.com
 DOMAIN-SUFFIX,xiaohu8.com
