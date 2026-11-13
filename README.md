@@ -29,6 +29,7 @@ proxy-rulesets/
 │   ├── hellobike.plugin         哈啰 App 净化
 │   ├── txsports.plugin          腾讯体育 App 净化
 │   ├── hupu.plugin              虎扑 App 净化
+│   ├── txvideo.plugin           腾讯视频 App 净化
 │   ├── sources/                 自维护的 QX 规则源（上游规则需改动时放这里）
 │   ├── scripts/                 插件引用的脚本（上游原脚本 + QX→Loon 兼容层）
 │   ├── compat/qx-compat.js      兼容层模板
@@ -107,12 +108,15 @@ https://raw.githubusercontent.com/yishisanren/proxy-rulesets/main/ai/ai-all-kari
 | 哈啰 App 净化 | `loon/hellobike.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Fhellobike.plugin) |
 | 腾讯体育 App 净化 | `loon/txsports.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Ftxsports.plugin) |
 | 虎扑 App 净化 | `loon/hupu.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Fhupu.plugin) |
+| 腾讯视频 App 净化 | `loon/txvideo.plugin` | [导入 Loon](https://www.nsloon.com/openloon/import?plugin=https%3A%2F%2Fraw.githubusercontent.com%2Fyishisanren%2Fproxy-rulesets%2Fmain%2Floon%2Ftxvideo.plugin) |
 
 > 哈啰插件首次使用：打开哈啰 App 后若收到"已捕获本机动态密钥"通知，重新进入首页和"我的"页面即可生效。
 >
 > 腾讯体育插件：开屏广告的开关是 App 启动时拉取的配置，装好插件后完全退出腾讯体育、重新打开一两次才会看到开屏广告消失。
 >
 > 虎扑插件：只处理 `goblin.hupu.com` 的 `interfaceAd/getOther` 接口（v3 / batch，版本号不限），清空返回体里的 `ads` 数组；信息流、开屏等其他广告位不在覆盖范围。规则文件放在 `loon/sources/`，按任意版本号匹配，虎扑升级不会导致失效。
+>
+> 腾讯视频插件：另外两条 `host` 规则直接 REJECT 广告域名（`iacc.stgw.qq.com`、`tacc.video.qq.com`），不过 MITM，所以断网时这两条也是立即生效的；其余四个接口靠脚本改写。开屏与底部 tap 栏的配置在 App 启动时拉取，装好后完全退出腾讯视频、重开一两次才看得到效果。
 
 ---
 

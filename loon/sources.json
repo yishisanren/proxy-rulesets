@@ -26,6 +26,11 @@
     {
       "id": "hupu",
       "snippet": "loon/sources/hupu.conf"
+    },
+    {
+      "id": "txvideo",
+      "snippet": "https://raw.githubusercontent.com/ZenmoFeiShi/Qx/refs/heads/main/TxvideoAD.snippet",
+      "homepage": "https://github.com/ZenmoFeiShi/Qx"
     }
   ]
 }
